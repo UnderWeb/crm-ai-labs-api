@@ -1,0 +1,74 @@
+x-crm-ai-labs-base: &crm-ai-labs-base
+  build:
+    context: .
+    dockerfile: Dockerfile
+    target: development
+  env_file:
+    - .env
+  networks:
+    - crm-ai-labs-network
+  restart: unless-stopped
+  stdin_open: true
+  tty: true
+
+services:
+  crm-ai-labs-backend:
+    <<: *crm-ai-labs-base
+
+    container_name: crm-ai-labs-backend
+
+    user: "${UID:-1000}:${GID:-1000}"
+
+    ports:
+      - "${APP_PORT:-4000}:4000"
+
+    volumes:
+      - .:/usr/src/app
+
+    depends_on:
+      crm-ai-labs-postgres:
+        condition: service_healthy
+
+  crm-ai-labs-postgres:
+    image: postgres:16-alpine
+
+    container_name: crm-ai-labs-postgres
+
+    environment:
+      POSTGRES_USER: crm_user
+      POSTGRES_PASSWORD: crm_password
+      POSTGRES_DB: crm_db
+      PGDATA: /var/lib/postgresql/data/pgdata
+
+    ports:
+      - "5432:5432"
+
+    volumes:
+      - crm-ai-labs-postgres-data:/var/lib/postgresql/data/pgdata
+
+    networks:
+      - crm-ai-labs-network
+
+    restart: unless-stopped
+
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U crm_user -d crm_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+volumes:
+  crm-ai-labs-postgres-data:
+    name: crm-ai-labs-postgres-data
+
+  crm-ai-labs-node-modules:
+    name: crm-ai-labs-node-modules
+
+  crm-ai-labs-prisma-generated:
+    name: crm-ai-labs-prisma-generated
+
+networks:
+  crm-ai-labs-network:
+    name: crm-ai-labs-network
+    driver: bridge

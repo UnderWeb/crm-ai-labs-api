@@ -1,0 +1,125 @@
+generator client {
+  provider            = "prisma-client"
+  output              = "../src/generated/prisma"
+  moduleFormat        = "cjs"
+  importFileExtension = ""
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Stage {
+  LEAD_NUEVO
+  CONTACTADO
+  DIAGNOSTICO
+  PROPUESTA_ENVIADA
+  NEGOCIACION
+  GANADO
+  PERDIDO
+}
+
+enum Priority {
+  BAJA
+  MEDIA
+  ALTA
+  CRITICA
+}
+
+enum Currency {
+  USD
+  COP
+  CLP
+  UF
+  EUR
+}
+
+enum UserRole {
+  ADMIN
+  SALES
+  VIEWER
+}
+
+model User {
+  id        String   @id @default(uuid()) @map("id")
+  email     String   @unique @db.VarChar(320)
+  firstName String   @map("first_name")
+  lastName  String   @map("last_name")
+  password  String
+  role      UserRole @default(VIEWER)
+  isActive  Boolean  @default(true) @map("is_active")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  opportunities   Opportunity[]
+  aiConversations AiConversation[]
+
+  @@map("users")
+
+  @@index([email])
+  @@index([role])
+}
+
+model Opportunity {
+  id String @id @default(uuid()) @map("id")
+
+  companyName     String @map("company_name")
+  contactName     String @map("contact_name")
+  contactEmail    String @map("contact_email") @db.VarChar(320)
+
+  opportunityName String @map("opportunity_name")
+  description     String
+
+  estimatedValue Decimal  @db.Decimal(14, 2)
+  currency       Currency
+
+  stage    Stage    @default(LEAD_NUEVO)
+  priority Priority @default(MEDIA)
+
+  probability Int
+
+  ownerId String @map("owner_id")
+
+  owner User @relation(fields: [ownerId], references: [id], onDelete: Restrict)
+
+  nextFollowUpDate DateTime @map("next_follow_up_date")
+
+  lastInteractionSummary String? @map("last_interaction_summary")
+  aiRecommendation       String? @map("ai_recommendation")
+
+  isActive Boolean @default(true) @map("is_active")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("opportunities")
+
+  @@index([stage])
+  @@index([priority])
+  @@index([ownerId])
+  @@index([nextFollowUpDate])
+  @@index([estimatedValue])
+  @@index([contactEmail])
+}
+
+model AiConversation {
+  id String @id @default(uuid())
+
+  userId String?
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  message  String
+  response String
+
+  toolsUsed String[]
+  sources   String[]
+
+  createdAt DateTime @default(now())
+
+  @@map("ai_conversations")
+
+  @@index([userId])
+  @@index([createdAt])
+}
