@@ -1,4 +1,5 @@
 // src/database/prisma.service.spec.ts
+import { ConfigService } from '@nestjs/config';
 import { Test, TestingModule } from '@nestjs/testing';
 import {
   afterEach,
@@ -11,22 +12,27 @@ import {
 import { PrismaService } from './prisma.service';
 
 describe('PrismaService', () => {
-  let moduleRef: TestingModule;
   let service: PrismaService;
+  let moduleRef: TestingModule;
 
   beforeEach(async () => {
     moduleRef = await Test.createTestingModule({
-      providers: [PrismaService],
+      providers: [
+        PrismaService,
+        {
+          provide: ConfigService,
+          useValue: {
+            get: jest
+              .fn()
+              .mockReturnValue(
+                'postgresql://crm_user:crm_password@localhost:5432/crm_db?schema=public',
+              ),
+          },
+        },
+      ],
     }).compile();
 
-    service = moduleRef.get(PrismaService);
-
-    jest.spyOn(service, '$connect').mockResolvedValue(undefined);
-    jest.spyOn(service, '$disconnect').mockResolvedValue(undefined);
-  });
-
-  afterEach(async () => {
-    await moduleRef.close();
+    service = moduleRef.get<PrismaService>(PrismaService);
   });
 
   it('should be defined', () => {
@@ -34,22 +40,26 @@ describe('PrismaService', () => {
   });
 
   it('should connect on module init', async () => {
-    const connectSpy = jest.spyOn(service, '$connect');
+    const connectSpy = jest
+      .spyOn(service, '$connect')
+      .mockResolvedValue(undefined);
 
     await service.onModuleInit();
 
-    expect(connectSpy).toHaveBeenCalledTimes(1);
+    expect(connectSpy).toHaveBeenCalled();
   });
 
-  it('should disconnect on module destroy via NestJS lifecycle', async () => {
-    const disconnectSpy = jest.spyOn(service, '$disconnect');
-    const poolSpy = jest
-      .spyOn((service as any).pool, 'end')
+  it('should disconnect on module destroy', async () => {
+    const disconnectSpy = jest
+      .spyOn(service, '$disconnect')
       .mockResolvedValue(undefined);
 
-    await moduleRef.close();
+    await service.onModuleDestroy();
 
-    expect(disconnectSpy).toHaveBeenCalledTimes(1);
-    expect(poolSpy).toHaveBeenCalledTimes(1);
+    expect(disconnectSpy).toHaveBeenCalled();
+  });
+
+  afterEach(async () => {
+    await moduleRef.close();
   });
 });

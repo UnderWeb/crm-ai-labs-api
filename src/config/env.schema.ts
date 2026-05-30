@@ -4,6 +4,8 @@ import { z } from 'zod';
 export const envSchema = z.object({
   APP_ENV: z.string(),
   APP_PORT: z.coerce.number(),
+  LOG_LEVEL: z.string().default('info'),
+  CORS_ORIGINS: z.url(),
 
   DATABASE_URL: z.url(),
 
@@ -16,3 +18,7 @@ export const envSchema = z.object({
 });
 
 export type Env = z.infer<typeof envSchema>;
+
+export function validateEnv(config: Record<string, unknown>): Env {
+  return envSchema.parse(config);
+}
